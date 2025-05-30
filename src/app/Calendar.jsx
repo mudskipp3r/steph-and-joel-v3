@@ -2,11 +2,11 @@
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import React, { useState, useEffect, useRef } from "react";
-import Image from "next/image";
 
 export default function Calendar() {
   const [isMobile, setIsMobile] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(0);
+  const [svgContent, setSvgContent] = useState(null);
   const calendarGridRef = useRef(null);
   const monthTextRef = useRef(null);
   const yearTextRef = useRef(null);
@@ -22,6 +22,21 @@ export default function Calendar() {
     window.addEventListener("resize", checkMobile);
 
     return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
+  // Load SVG content for animation
+  useEffect(() => {
+    const loadSVG = async () => {
+      try {
+        const response = await fetch('/images/hand-drawn-circle.svg');
+        const svgText = await response.text();
+        setSvgContent(svgText);
+      } catch (error) {
+        console.error('Error loading SVG:', error);
+      }
+    };
+
+    loadSVG();
   }, []);
 
   // Generate months from current to wedding
@@ -155,12 +170,10 @@ export default function Calendar() {
     let fontWeight = "normal";
 
     if (dayData.isToday) {
-      backgroundColor = "#28a745";
-      color = "white";
+      backgroundColor = "lightGray";
       fontWeight = "bold";
     } else if (dayData.isWeddingDay) {
-      backgroundColor = "#dc3545";
-      color = "white";
+      color = "red";
       fontWeight = "bold";
     } else if (!dayData.isCurrentMonth) {
       color = "#ccc";
@@ -170,14 +183,14 @@ export default function Calendar() {
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
-      fontSize: "clamp(0.85rem, 2.2vw, 1.1rem)", // Slightly larger for taller calendar
+      fontSize: "clamp(0.85rem, 2.2vw, 1.1rem)",
       fontWeight: fontWeight,
       textAlign: "center",
-      padding: "clamp(0.2rem, 0.6vw, 0.4rem)", // Slightly more padding
-      minHeight: "clamp(24px, 4vw, 42px)", // Taller cells for taller calendar
+      padding: "clamp(0.2rem, 0.6vw, 0.4rem)",
+      minHeight: "clamp(24px, 4vw, 42px)",
       color: color,
       backgroundColor: backgroundColor,
-      borderRadius: dayData.isToday || dayData.isWeddingDay ? "50%" : "0",
+      borderRadius: "0.5rem",
       position: "relative",
       overflow: "hidden",
       boxSizing: "border-box",
@@ -196,22 +209,22 @@ export default function Calendar() {
     if (calendar.dataset.animated === 'true') return;
     calendar.dataset.animated = 'true';
 
-    // Calendar entrance animation
+    // Calendar entrance animation - starts much earlier
     gsap.set(calendar, { opacity: 0, y: 50 });
 
-    const entranceTl = gsap.timeline({ delay: 1.2 }); // Start sooner - was 1.8
+    const entranceTl = gsap.timeline({ delay: 0.1 }); // Much earlier start - was 0.3
     entranceTl
       .to(calendar, {
         opacity: 1,
         y: 0,
-        duration: 1.2,
+        duration: 0.8,
         ease: "power3.out",
       })
-      .to({}, { duration: 0.3 }) // Shorter pause
+      .to({}, { duration: 0.1 }) // Very brief pause - was 0.2
       .add(() => {
-        // Single smooth animation through all months
+        // Single smooth animation through all months - faster progression
         const totalMonths = months.length - 1;
-        const totalDuration = 2.5; // Slightly faster - was 3 seconds
+        const totalDuration = 1.5; // Much faster - was 2 seconds
         const cellsPerMonth = 42; // 6 rows * 7 columns
         const rowsPerMonth = 6; // 6 rows per month
         
@@ -244,25 +257,64 @@ export default function Calendar() {
               yearText.textContent = lastMonth.year.toString();
             }
             
-            // Draw the handwritten circle around the wedding date
+            // Animate the hand-drawn circle being drawn (CSS-Tricks method)
             const circle = circleRef.current;
             if (circle) {
+              // Show the container first
               gsap.set(circle, { opacity: 1 });
-              gsap.fromTo(circle.querySelector('path'), 
-                {
-                  strokeDasharray: "200 200",
-                  strokeDashoffset: 200
-                },
-                {
-                  strokeDashoffset: 0,
-                  duration: 1.5,
-                  ease: "power2.out",
-                  delay: 0.5 // Small delay after calendar stops
-                }
-              );
+              
+              // Find all path elements in the loaded SVG
+              const paths = circle.querySelectorAll('path');
+              
+              if (paths.length > 0) {
+                paths.forEach((path, index) => {
+                  // Get the total length of the path
+                  const pathLength = path.getTotalLength();
+                  
+                  console.log('Path length:', pathLength); // Debug log
+                  
+                  // Ensure proper stroke properties (your SVG has stroke in CSS)
+                  // Override any CSS that might interfere
+                  path.style.stroke = '#dc3545'; // Wedding theme color
+                  path.style.strokeWidth = '4';
+                  path.style.fill = 'none';
+                  path.style.strokeMiterlimit = '10';
+                  
+                  // Set initial state: make the entire stroke invisible
+                  path.style.strokeDasharray = `${pathLength} ${pathLength}`;
+                  path.style.strokeDashoffset = pathLength.toString();
+                  
+                  // Animate the stroke-dashoffset to 0 to "draw" the line
+                  gsap.to(path, {
+                    strokeDashoffset: 0,
+                    duration: 1, // Slightly longer for a more satisfying draw
+                    ease: "power2.out",
+                    delay: 0.5 // Give a moment after calendar stops
+                  });
+                });
+              } else {
+                console.log('No paths found in SVG'); // Debug log
+                
+                // Fallback: animate the entire container
+                gsap.fromTo(circle, 
+                  { 
+                    opacity: 0,
+                    scale: 0.8,
+                    rotation: -10 
+                  },
+                  {
+                    opacity: 1,
+                    scale: 1,
+                    rotation: 0,
+                    duration: 1,
+                    ease: "back.out(1.7)",
+                    delay: 0.3
+                  }
+                );
+              }
             }
           }
-        });;
+        });
       });
 
     return () => {
@@ -306,8 +358,8 @@ export default function Calendar() {
             alignItems: isMobile ? "center" : "start",
             textAlign: isMobile ? "center" : "left",
             marginBottom: isMobile ? "1rem" : "0",
-            minWidth: isMobile ? "auto" : "clamp(120px, 15vw, 180px)", // Fixed width for consistent layout
-            flexShrink: 0, // Prevent shrinking
+            minWidth: isMobile ? "auto" : "clamp(120px, 15vw, 180px)",
+            flexShrink: 0,
           }}
         >
           <h1
@@ -318,7 +370,7 @@ export default function Calendar() {
               lineHeight: "1",
               fontWeight: "700",
               color: "#2c3e50",
-              width: "100%", // Take full width of container
+              width: "100%",
             }}
           >
             {months[currentMonth]?.shortName || "May"}
@@ -343,8 +395,8 @@ export default function Calendar() {
             width: "100%",
             maxWidth: isMobile ? "320px" : "none",
             height: isMobile
-              ? "clamp(280px, 60vw, 400px)" // Increased height for mobile
-              : "clamp(200px, 30vw, 280px)", // Increased height for desktop
+              ? "clamp(280px, 60vw, 400px)"
+              : "clamp(200px, 30vw, 280px)",
             overflow: "hidden",
           }}
         >
@@ -358,10 +410,10 @@ export default function Calendar() {
               height: "clamp(20px, 4vw, 40px)",
               display: "grid",
               gridTemplateColumns: "repeat(7, 1fr)",
-              gap: "clamp(3px, 1vw, 6px)", // Match the grid gap
+              gap: "clamp(3px, 1vw, 6px)",
               zIndex: 10,
               backgroundColor: "white",
-              paddingBottom: "clamp(3px, 1vw, 6px)" // Match the gap
+              paddingBottom: "clamp(3px, 1vw, 6px)"
             }}
           >
             {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => (
@@ -382,42 +434,32 @@ export default function Calendar() {
             ))}
           </div>
 
-          {/* Handwritten Circle for Wedding Date */}
-          {currentMonth === months.length - 1 && (
-            <svg
+          {/* Hand-drawn Circle for Wedding Date */}
+          {currentMonth === months.length - 1 && svgContent && (
+            <div
               ref={circleRef}
               style={{
                 position: "absolute",
-                top: "50%",
-                left: "50%",
+                top: "42%",
+                left: "65%", // Move further right to prevent left clipping
                 transform: "translate(-50%, -50%)",
-                width: "100%",
-                height: "100%",
+                width: "64px",
+                height: "64px",
+                padding: "px", // Increase padding for more buffer space
                 pointerEvents: "none",
                 zIndex: 1000,
-                opacity: 0, // Hidden initially
+                opacity: 0,
+                overflow: "visible",
               }}
-              viewBox="0 0 100 100"
-            >
-              <path
-                d="M 30 35 Q 20 25, 35 20 Q 50 15, 65 20 Q 80 25, 70 35 Q 75 50, 70 65 Q 80 75, 65 80 Q 50 85, 35 80 Q 20 75, 30 65 Q 25 50, 30 35"
-                fill="none"
-                stroke="#dc3545"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                style={{
-                  filter: "drop-shadow(0 2px 4px rgba(220, 53, 69, 0.3))",
-                }}
-              />
-            </svg>
+              dangerouslySetInnerHTML={{ __html: svgContent }}
+            />
           )}
 
           {/* Scrolling Dates Container */}
           <div
             style={{
               position: "absolute",
-              top: "clamp(24px, 5vw, 44px)", // Start below the fixed headers
+              top: "clamp(24px, 5vw, 44px)",
               left: 0,
               width: "100%",
               height: "calc(100% - clamp(24px, 5vw, 44px))",
@@ -431,7 +473,7 @@ export default function Calendar() {
                 width: "100%",
                 display: "grid",
                 gridTemplateColumns: "repeat(7, 1fr)",
-                gridTemplateRows: `repeat(${Math.ceil(allCalendarData.length / 7)}, clamp(24px, 4vw, 42px))`, // Match the cell height
+                gridTemplateRows: `repeat(${Math.ceil(allCalendarData.length / 7)}, clamp(24px, 4vw, 42px))`,
                 gap: "clamp(3px, 1vw, 6px)",
                 backgroundColor: "white",
               }}
