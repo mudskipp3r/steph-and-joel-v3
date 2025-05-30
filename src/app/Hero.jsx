@@ -16,6 +16,7 @@ export default function Hero() {
   const line2Ref = useRef(null);
   const subtitleRef = useRef(null);
   const backgroundRef = useRef(null);
+  const calendarRef = useRef(null);
 
   useGSAP(() => {
     const text = textRef.current;
@@ -25,8 +26,9 @@ export default function Hero() {
     const line1 = line1Ref.current;
     const line2 = line2Ref.current;
     const subtitle = subtitleRef.current;
+    const calendar = calendarRef.current;
 
-    if (!text || !backgroundImage || !foreground || !hero) return;
+    if (!text || !backgroundImage || !foreground || !hero || !calendar) return;
 
     // Prevent multiple animations from running
     if (hero.dataset.animated === 'true') return;
@@ -38,12 +40,6 @@ export default function Hero() {
       opacity: 0,
       rotationX: 45,
       transformOrigin: "center bottom"
-    });
-
-    // Set initial background position for smoother parallax
-    gsap.set(backgroundImage, {
-      scale: 1.1, // Start slightly larger to avoid edge gaps during parallax
-      transformOrigin: "center center"
     });
 
     // Improved text entrance timeline with better easing
@@ -63,7 +59,7 @@ export default function Hero() {
         rotationX: 0,
         duration: 1.2,
         ease: "power3.out"
-      }, "-=0.8") // Overlap more for smoother flow
+      }, "-=0.8")
       .to(subtitle, {
         y: 0,
         opacity: 1,
@@ -82,48 +78,12 @@ export default function Hero() {
       delay: 0.5
     });
 
-    // Optimized parallax with smoother performance
-    let parallaxTween;
-    
-    ScrollTrigger.create({
-      trigger: hero,
-      start: "top top",
-      end: "bottom top",
-      onUpdate: (self) => {
-        // Kill existing tween to prevent stacking
-        if (parallaxTween) parallaxTween.kill();
-        
-        const progress = self.progress;
-        const backgroundY = progress * -80; // Slower background movement
-        const foregroundY = progress * -40; // Medium foreground movement
-        const textY = progress * -120; // Fastest text movement
-        
-        // Use a single tween for all transforms to improve performance
-        parallaxTween = gsap.set([backgroundImage, foreground, text], {
-          y: (i) => {
-            if (i === 0) return backgroundY; // background
-            if (i === 1) return foregroundY; // foreground
-            return textY; // text
-          },
-          force3D: true, // Force hardware acceleration
-          ease: "none"
-        });
-      },
-      onLeave: () => {
-        if (parallaxTween) parallaxTween.kill();
-      },
-      onEnterBack: () => {
-        if (parallaxTween) parallaxTween.kill();
-      }
-    });
-
     return () => {
       ScrollTrigger.getAll().forEach(trigger => {
         if (trigger.trigger === hero) {
           trigger.kill();
         }
       });
-      if (parallaxTween) parallaxTween.kill();
       if (hero) {
         hero.dataset.animated = 'false';
       }
@@ -135,42 +95,45 @@ export default function Hero() {
       position: "relative",
       height: "100vh",
       display: "flex",
-      overflow: "hidden", // Prevent any overflow issues
-      willChange: "transform", // Optimize for animations
+      overflow: "hidden",
+      willChange: "transform",
     }}>
-      {/* Background Container with improved rendering */}
-      <div style={{
-        position: "absolute",
-        top: "-5%", // Slight expansion to prevent edge gaps
-        left: "-5%",
-        width: "110%",
-        height: "110%",
-        zIndex: 1,
-      }}>
+      {/* Background Container */}
+      <div 
+        style={{
+          position: "absolute",
+          top: "-15%",
+          left: "-5%",
+          width: "110%",
+          height: "110%",
+          zIndex: 1,
+        }}
+        data-speed="0.8"
+      >
         <Image
           ref={backgroundRef}
           src="/images/background.png"
           fill={true}
           alt="Wedding background"
           priority 
-          quality={95} // Higher quality for sharper images
-          sizes="100vw"
+          quality={95}
+          sizes="110vw"
           style={{
             objectFit: "cover",
             objectPosition: "center center",
             willChange: "transform",
-            backfaceVisibility: "hidden", // Prevent flickering
+            backfaceVisibility: "hidden",
             WebkitBackfaceVisibility: "hidden",
           }}
         />
       </div>
       
-      {/* Text Content with improved positioning */}
+      {/* Text Content */}
       <div 
         ref={textRef} 
         style={{ 
           position: "absolute",
-          top: "22%",
+          top: "40%",
           left: "50%",
           transform: "translateX(-50%)",
           zIndex: 10,
@@ -181,13 +144,13 @@ export default function Hero() {
         }}
       >
         <h1 style={{ 
-          fontSize: "clamp(2.8rem, 8vw, 4.5rem)", // Slightly larger for more impact
+          fontSize: "clamp(2.8rem, 8vw, 4.5rem)",
           marginBottom: "1.2rem",
           fontWeight: "700",
-          textShadow: "0 4px 8px rgba(0, 0, 0, 0.6), 0 2px 4px rgba(0, 0, 0, 0.4)", // Enhanced shadow
+          textShadow: "0 4px 8px rgba(0, 0, 0, 0.6), 0 2px 4px rgba(0, 0, 0, 0.4)",
           lineHeight: "1.1",
           margin: "0 0 1.2rem 0",
-          letterSpacing: "-0.02em" // Tighter letter spacing for elegance
+          letterSpacing: "-0.02em"
         }}>
           <div 
             ref={line1Ref} 
@@ -215,14 +178,14 @@ export default function Hero() {
         <p 
           ref={subtitleRef}
           style={{ 
-            fontSize: "clamp(1.1rem, 3vw, 1.4rem)", // Slightly larger
+            fontSize: "clamp(1.1rem, 3vw, 1.4rem)",
             textShadow: "0 3px 6px rgba(0, 0, 0, 0.6), 0 1px 3px rgba(0, 0, 0, 0.4)",
             margin: "0",
             opacity: 0,
             transform: "translateY(60px) rotateX(45deg)",
             transformOrigin: "center bottom",
             fontWeight: "400",
-            letterSpacing: "0.05em", // Spaced out subtitle
+            letterSpacing: "0.05em",
             willChange: "transform, opacity"
           }}
         >
@@ -230,8 +193,9 @@ export default function Hero() {
         </p>
       </div>
 
-      {/* Calendar Container with improved positioning */}
+      {/* Calendar Container */}
       <div 
+        ref={calendarRef}
         style={{
           position: "absolute",
           bottom: "8%",
@@ -244,23 +208,26 @@ export default function Hero() {
         <Calendar />
       </div>
 
-      {/* Foreground Container with improved rendering */}
-      <div style={{
-        position: "absolute",
-        bottom: "-15%", // More extension for better coverage
-        left: "-10%",
-        width: "120%",
-        height: "85%",
-        zIndex: 3,
-        pointerEvents: "none",
-        willChange: "transform",
-      }}>
+      {/* Foreground Container */}
+      <div 
+        style={{
+          position: "absolute",
+          bottom: "-5%",
+          left: "-20%",
+          width: "140%",
+          height: "85%",
+          zIndex: 3,
+          pointerEvents: "none",
+          willChange: "transform",
+        }}
+        data-speed="0.8"
+      >
         <Image
           ref={foregroundRef}
           src="/images/foreground.png"
           fill={true}
           alt="Wedding foreground decoration"
-          quality={95} // Higher quality
+          quality={95}
           sizes="120vw"
           style={{
             objectFit: "cover",

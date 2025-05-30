@@ -5,13 +5,13 @@ import Hero from "./Hero";
 import Schedule from "./Schedule";
 import BridalParty from "./BridalParty";
 import PasswordProtection from "./PasswordProtection";
+import ScrollSmootherWrapper from './ScrollSmootherWrapper';
 
 export default function Home() {
   const pageRef = useRef(null);
 
   const handleAuthenticated = () => {
     console.log('Guest authenticated for wedding site!');
-    // You could add analytics, tracking, or other logic here
   };
 
   return (
@@ -23,21 +23,23 @@ export default function Home() {
       placeholder="Enter guest password"
       onAuthenticated={handleAuthenticated}
     >
-      <div ref={pageRef} className={styles.page}>
-        <main>
-          <section className={styles.heroSection}>
-            <Hero />
-          </section>
+      <ScrollSmootherWrapper>
+        <div ref={pageRef} className={styles.page}>
+          <main>
+            <section className={styles.heroSection}>
+              <Hero />
+            </section>
 
-          <section className={styles.scheduleSection}>
-            <Schedule />
-          </section>
+            <section className={styles.scheduleSection}>
+              <Schedule />
+            </section>
 
-          <section className={styles.BridalPartySection}>
-            <BridalParty />
-          </section>
-        </main>
-      </div>
+            <section className={styles.BridalPartySection}>
+              <BridalParty />
+            </section>
+          </main>
+        </div>
+      </ScrollSmootherWrapper>
     </PasswordProtection>
   );
 }
