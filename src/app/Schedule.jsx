@@ -1,6 +1,5 @@
 "use client";
 import React, { useRef, useState, useEffect } from 'react';
-
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { useGSAP } from '@gsap/react';
@@ -14,6 +13,8 @@ const Schedule = () => {
   const [activeEvent, setActiveEvent] = useState(0);
   const [map, setMap] = useState(null);
   const [markers, setMarkers] = useState([]);
+  const [mapError, setMapError] = useState(false);
+  const [isMapLoading, setIsMapLoading] = useState(true);
 
   const events = [
     {
@@ -22,7 +23,7 @@ const Schedule = () => {
       title: "Tea ceremony",
       location: "Stephanie's house",
       address: "6 Orchard St, Epping, NSW 2121",
-      coordinates: { lat: -33.7667, lng: 151.0833 }, // Epping coordinates
+      coordinates: { lat: -33.7667, lng: 151.0833 },
       color: "#E8F5E8",
       accentColor: "#4CAF50"
     },
@@ -32,7 +33,7 @@ const Schedule = () => {
       title: "Church ceremony",
       location: "Saint Brigid's Catholic Church",
       address: "Livingstone Rd, Marrickville, NSW 2204",
-      coordinates: { lat: -33.9133, lng: 151.1553 }, // Marrickville coordinates
+      coordinates: { lat: -33.9133, lng: 151.1553 },
       color: "#FFF3E0",
       accentColor: "#FF9800"
     },
@@ -42,20 +43,44 @@ const Schedule = () => {
       title: "Reception",
       location: "The Sky Ballroom",
       address: "Level 3/462 Chapel Rd, Bankstown NSW 2200", 
-      coordinates: { lat: -33.9198, lng: 151.0346 }, // Bankstown coordinates
+      coordinates: { lat: -33.9198, lng: 151.0346 },
       color: "#F3E5F5",
       accentColor: "#9C27B0"
     }
   ];
 
-  // Initialize Google Map
-  useEffect(() => {
-    const initMap = () => {
-      if (!mapRef.current || !window.google) return;
+  // Calculate distance between two coordinates (in km)
+  const calculateDistance = (coord1, coord2) => {
+    const R = 6371; // Earth's radius in km
+    const dLat = (coord2.lat - coord1.lat) * Math.PI / 180;
+    const dLon = (coord2.lng - coord1.lng) * Math.PI / 180;
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(coord1.lat * Math.PI / 180) * Math.cos(coord2.lat * Math.PI / 180) * 
+      Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  };
+
+  // Improved map initialization with better error handling
+  const initializeMap = () => {
+    if (!mapRef.current || !window.google?.maps) {
+      console.log('Google Maps not ready, retrying...');
+      return;
+    }
+
+    try {
+      setIsMapLoading(true);
+      setMapError(false);
 
       const newMap = new window.google.maps.Map(mapRef.current, {
         zoom: 12,
         center: events[0].coordinates,
+        mapTypeControl: true,
+        streetViewControl: true,
+        fullscreenControl: true,
+        zoomControl: true,
+        gestureHandling: 'cooperative',
         styles: [
           {
             "featureType": "all",
@@ -85,53 +110,135 @@ const Schedule = () => {
         ]
       });
 
-      // Create markers for all events
-      const newMarkers = events.map((event, index) => {
-        const marker = new window.google.maps.Marker({
-          position: event.coordinates,
-          map: newMap,
-          title: event.location
-        });
+      // Wait for map to be ready before creating markers
+      window.google.maps.event.addListenerOnce(newMap, 'idle', () => {
+        try {
+          // Create markers for all events
+          const newMarkers = events.map((event, index) => {
+            const marker = new window.google.maps.Marker({
+              position: event.coordinates,
+              map: newMap,
+              title: event.location,
+              animation: window.google.maps.Animation.DROP,
+              icon: {
+                url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
+                  <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="16" cy="16" r="12" fill="${event.accentColor}" stroke="white" stroke-width="3"/>
+                    <text x="16" y="20" text-anchor="middle" fill="white" font-family="Arial" font-size="12" font-weight="bold">${index + 1}</text>
+                  </svg>
+                `)}`,
+                scaledSize: new window.google.maps.Size(32, 32),
+                anchor: new window.google.maps.Point(16, 16)
+              }
+            });
 
-        return { marker };
+            // Add click listener to marker
+            marker.addListener('click', () => {
+              setActiveEvent(index);
+            });
+
+            return { marker, event };
+          });
+
+          setMap(newMap);
+          setMarkers(newMarkers);
+          setIsMapLoading(false);
+          console.log('Google Maps initialized successfully');
+        } catch (error) {
+          console.error('Error creating markers:', error);
+          setMapError(true);
+          setIsMapLoading(false);
+        }
       });
 
-      setMap(newMap);
-      setMarkers(newMarkers);
-    };
+      // Handle map errors
+      window.google.maps.event.addListener(newMap, 'error', (error) => {
+        console.error('Google Maps error:', error);
+        setMapError(true);
+        setIsMapLoading(false);
+      });
 
-    // Load Google Maps API if not already loaded
-    if (!window.google) {
-      const script = document.createElement('script');
-      script.src = `https://maps.googleapis.com/maps/api/js?key=AIzaSyCaXKqM2Vx4e84Ucn7nzZ-0JF7pZEA8B-4&callback=initMap`;
-      script.async = true;
-      script.defer = true;
-      window.initMap = initMap;
-      document.head.appendChild(script);
-    } else {
-      initMap();
+    } catch (error) {
+      console.error('Error initializing map:', error);
+      setMapError(true);
+      setIsMapLoading(false);
     }
-  }, []);
-
-  // Calculate distance between two coordinates (in km)
-  const calculateDistance = (coord1, coord2) => {
-    const R = 6371; // Earth's radius in km
-    const dLat = (coord2.lat - coord1.lat) * Math.PI / 180;
-    const dLon = (coord2.lng - coord1.lng) * Math.PI / 180;
-    const a = 
-      Math.sin(dLat/2) * Math.sin(dLat/2) +
-      Math.cos(coord1.lat * Math.PI / 180) * Math.cos(coord2.lat * Math.PI / 180) * 
-      Math.sin(dLon/2) * Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    return R * c;
   };
+
+  // Load Google Maps API with improved error handling
+  useEffect(() => {
+    // Check if Google Maps is already loaded
+    if (window.google?.maps) {
+      initializeMap();
+      return;
+    }
+
+    // Check if script is already being loaded
+    if (document.querySelector('script[src*="maps.googleapis.com"]')) {
+      // Wait for existing script to load
+      const checkGoogleMaps = setInterval(() => {
+        if (window.google?.maps) {
+          clearInterval(checkGoogleMaps);
+          initializeMap();
+        }
+      }, 100);
+
+      // Clear interval after 10 seconds to prevent infinite checking
+      setTimeout(() => {
+        clearInterval(checkGoogleMaps);
+        if (!window.google?.maps) {
+          setMapError(true);
+          setIsMapLoading(false);
+        }
+      }, 10000);
+      return;
+    }
+
+    // Load Google Maps script
+    const script = document.createElement('script');
+    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+    
+    // Temporary debug logging
+    console.log('API Key loaded:', apiKey ? 'Yes (length: ' + apiKey.length + ')' : 'No');
+    console.log('All env vars:', Object.keys(process.env).filter(key => key.startsWith('NEXT_PUBLIC_')));
+    
+    if (!apiKey) {
+      console.error('Google Maps API key not found. Please add NEXT_PUBLIC_GOOGLE_MAPS_API_KEY to your environment variables.');
+      setMapError(true);
+      setIsMapLoading(false);
+      return;
+    }
+
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry&v=3.54`;
+    script.async = true;
+    script.defer = true;
+    
+    script.onload = () => {
+      console.log('Google Maps script loaded');
+      // Small delay to ensure Google Maps is fully ready
+      setTimeout(initializeMap, 100);
+    };
+    
+    script.onerror = (error) => {
+      console.error('Failed to load Google Maps script:', error);
+      setMapError(true);
+      setIsMapLoading(false);
+    };
+    
+    document.head.appendChild(script);
+
+    // Cleanup function
+    return () => {
+      // Don't remove the script as it might be used by other components
+      // Just clear any intervals or timeouts if they exist
+    };
+  }, []);
 
   // Smooth pan with intelligent zoom
   const smoothPanToLocation = (targetCoords, currentCoords) => {
     if (!map) return;
 
     const distance = calculateDistance(currentCoords, targetCoords);
-    const currentZoom = map.getZoom();
     
     // Always zoom out and back in to make location changes clear
     let zoomOutLevel, finalZoom;
@@ -145,12 +252,12 @@ const Schedule = () => {
     } else if (distance > 2) { // Medium distance (2-5km)
       zoomOutLevel = 12;
       finalZoom = 15;
-    } else { // Close distance (<2km) - still zoom out for clarity
+    } else { // Close distance (<2km)
       zoomOutLevel = 12;
       finalZoom = 15;
     }
 
-    // Always animate with zoom out, pan, zoom in sequence
+    // Smooth animation sequence
     map.setZoom(zoomOutLevel);
     
     setTimeout(() => {
@@ -164,27 +271,21 @@ const Schedule = () => {
 
   // Update map when active event changes
   useEffect(() => {
-    if (!map || !markers.length) return;
+    if (!map || !markers.length || mapError) return;
 
     const activeEventData = events[activeEvent];
     const currentCenter = map.getCenter();
-    const currentCoords = {
-      lat: currentCenter.lat(),
-      lng: currentCenter.lng()
-    };
     
-    // Smooth pan to the new location
-    smoothPanToLocation(activeEventData.coordinates, currentCoords);
-    
-    // Update marker sizes and styles with animation delay
-    setTimeout(() => {
-      markers.forEach((markerObj, index) => {
-        // All markers use standard red Google Maps markers
-        // No special styling needed - they're already standard markers
-      });
-    }, 600);
-
-  }, [activeEvent, map, markers]);
+    if (currentCenter) {
+      const currentCoords = {
+        lat: currentCenter.lat(),
+        lng: currentCenter.lng()
+      };
+      
+      // Smooth pan to the new location
+      smoothPanToLocation(activeEventData.coordinates, currentCoords);
+    }
+  }, [activeEvent, map, markers, mapError]);
 
   useGSAP(() => {
     const container = containerRef.current;
@@ -224,6 +325,11 @@ const Schedule = () => {
     };
   }, []);
 
+  const openInGoogleMaps = (event) => {
+    const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.address)}`;
+    window.open(url, '_blank');
+  };
+
   return (
     <div 
       ref={containerRef}
@@ -232,7 +338,7 @@ const Schedule = () => {
         background: '#f8f9fa'
       }}
     >
-      {/* Left Side - Scrolling Timeline (Your original code) */}
+      {/* Left Side - Scrolling Timeline */}
       <div style={{
         width: '50%'
       }}>
@@ -326,16 +432,7 @@ const Schedule = () => {
                   flexWrap: 'wrap'
                 }}>
                   <button 
-                    onClick={() => {
-                      if (map && markers[index]) {
-                        const currentCenter = map.getCenter();
-                        const currentCoords = {
-                          lat: currentCenter.lat(),
-                          lng: currentCenter.lng()
-                        };
-                        smoothPanToLocation(event.coordinates, currentCoords);
-                      }
-                    }}
+                    onClick={() => openInGoogleMaps(event)}
                     style={{
                       padding: '1rem 2rem',
                       background: event.accentColor,
@@ -349,7 +446,7 @@ const Schedule = () => {
                       boxShadow: `0 4px 15px ${event.accentColor}40`
                     }}
                   >
-                    View on Map
+                    Open in Google Maps
                   </button>
                   
                   <button style={{
@@ -393,16 +490,101 @@ const Schedule = () => {
           overflow: 'hidden',
           position: 'relative'
         }}>
+          {/* Loading State */}
+          {isMapLoading && !mapError && (
+            <div style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: '#f8f9fa',
+              zIndex: 10
+            }}>
+              <div style={{
+                textAlign: 'center',
+                color: '#666'
+              }}>
+                <div style={{
+                  width: '40px',
+                  height: '40px',
+                  border: '4px solid #ddd',
+                  borderTop: '4px solid #667eea',
+                  borderRadius: '50%',
+                  animation: 'spin 1s linear infinite',
+                  margin: '0 auto 1rem'
+                }} />
+                <p>Loading map...</p>
+              </div>
+            </div>
+          )}
+
+          {/* Error State */}
+          {mapError && (
+            <div style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: '#f8f9fa',
+              zIndex: 10
+            }}>
+              <div style={{
+                textAlign: 'center',
+                color: '#666',
+                padding: '2rem'
+              }}>
+                <div style={{
+                  fontSize: '3rem',
+                  marginBottom: '1rem'
+                }}>📍</div>
+                <h3 style={{ marginBottom: '1rem' }}>Map unavailable</h3>
+                <p style={{ marginBottom: '1.5rem' }}>
+                  Unable to load the interactive map, but you can still view location details.
+                </p>
+                <button 
+                  onClick={() => openInGoogleMaps(events[activeEvent])}
+                  style={{
+                    padding: '0.75rem 1.5rem',
+                    background: '#667eea',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Open in Google Maps
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Map Element */}
           <div 
             ref={mapRef}
             style={{
               width: '100%',
               height: '100%',
-              minHeight: '400px'
+              minHeight: '400px',
+              opacity: mapError ? 0 : 1
             }}
           />
         </div>
       </div>
+
+      <style jsx>{`
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 };
