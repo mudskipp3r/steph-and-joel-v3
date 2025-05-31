@@ -111,11 +111,187 @@ const BridalParty = () => {
 
   const handleCardClick = (card) => {
     setSelectedCard(card);
+    // Prevent body scroll when modal is open
+    document.body.style.overflow = 'hidden';
   };
 
   const closeCard = () => {
     setSelectedCard(null);
+    // Restore body scroll
+    document.body.style.overflow = '';
   };
+
+  // Create portal for modal outside ScrollSmoother
+  useEffect(() => {
+    if (selectedCard) {
+      // Create modal container outside of ScrollSmoother
+      const modalContainer = document.createElement('div');
+      modalContainer.id = 'bridal-party-modal';
+      modalContainer.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0,0,0,0.9);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+        backdrop-filter: blur(10px);
+      `;
+      
+      // Add to body (outside ScrollSmoother)
+      document.body.appendChild(modalContainer);
+      
+      // Create modal content
+      const modalContent = document.createElement('div');
+      modalContent.style.cssText = `
+        width: 400px;
+        height: 600px;
+        transform: ${getCardTransform()};
+        transition: transform 0.1s ease-out;
+        cursor: none;
+        position: relative;
+      `;
+      
+      modalContent.innerHTML = `
+        <div style="
+          width: 100%;
+          height: 100%;
+          background: linear-gradient(145deg, #2a2a3e, #1e1e2e);
+          border-radius: 20px;
+          padding: 2rem;
+          box-shadow: 0 30px 60px rgba(0,0,0,0.6);
+          border: 3px solid rgba(102, 126, 234, 0.5);
+          position: relative;
+          overflow: hidden;
+        ">
+          <button id="close-modal" style="
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.3s ease;
+            z-index: 10;
+          ">×</button>
+          
+          <div style="
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent);
+            animation: shine 2s infinite;
+            pointer-events: none;
+          "></div>
+          
+          <div style="
+            position: relative;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            color: #F1F1F1;
+          ">
+            <div style="
+              flex: 1;
+              border-radius: 16px;
+              overflow: hidden;
+              margin-bottom: 1.5rem;
+            ">
+              <img src="${selectedCard.image}" alt="${selectedCard.name}" style="
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+              "/>
+            </div>
+            
+            <div style="text-align: center; margin-bottom: 1.5rem;">
+              <h2 style="
+                margin: 0 0 0.5rem 0;
+                font-size: 2.5rem;
+                font-weight: 700;
+                text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+              ">${selectedCard.name}</h2>
+              <p style="
+                margin: 0;
+                font-size: 1.5rem;
+                color: #667eea;
+                font-weight: 600;
+              ">${selectedCard.role}</p>
+            </div>
+            
+            <div style="
+              background: rgba(0,0,0,0.3);
+              border-radius: 12px;
+              padding: 1rem;
+            ">
+              <h4 style="
+                margin: 0 0 1rem 0;
+                font-size: 1.2rem;
+                text-align: center;
+                color: #667eea;
+              ">Special Attributes</h4>
+              ${Object.entries(selectedCard.stats).map(([stat, value]) => `
+                <div style="
+                  display: flex;
+                  justify-content: space-between;
+                  margin-bottom: 0.5rem;
+                ">
+                  <span style="text-transform: capitalize;">${stat}</span>
+                  <span style="color: #667eea; font-weight: 700;">${value}</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+      `;
+      
+      modalContainer.appendChild(modalContent);
+      
+      // Add event listeners
+      const closeButton = modalContainer.querySelector('#close-modal');
+      const handleClose = () => closeCard();
+      const handleBackdropClick = (e) => {
+        if (e.target === modalContainer) handleClose();
+      };
+      
+      closeButton.addEventListener('click', handleClose);
+      modalContainer.addEventListener('click', handleBackdropClick);
+      
+      // Mouse move effect
+      const handleMouseMove = (e) => {
+        const centerX = window.innerWidth / 2;
+        const centerY = window.innerHeight / 2;
+        const rotateX = (e.clientY - centerY) / 20;
+        const rotateY = (e.clientX - centerX) / 20;
+        modalContent.style.transform = `perspective(1000px) rotateX(${-rotateX}deg) rotateY(${rotateY}deg) translateZ(100px)`;
+      };
+      
+      modalContainer.addEventListener('mousemove', handleMouseMove);
+      
+      // Cleanup function
+      return () => {
+        closeButton.removeEventListener('click', handleClose);
+        modalContainer.removeEventListener('click', handleBackdropClick);
+        modalContainer.removeEventListener('mousemove', handleMouseMove);
+        if (document.body.contains(modalContainer)) {
+          document.body.removeChild(modalContainer);
+        }
+      };
+    }
+  }, [selectedCard]);
 
   // Calculate 3D rotation based on mouse position
   const getCardTransform = () => {
@@ -295,132 +471,7 @@ const BridalParty = () => {
         ))}
       </div>
 
-      {/* 3D Card Modal */}
-      {selectedCard && (
-        <div 
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            width: '100vw',
-            height: '100vh',
-            background: 'rgba(0,0,0,0.9)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            backdropFilter: 'blur(10px)'
-          }}
-          onClick={closeCard}
-        >
-          <div 
-            style={{
-              width: '400px',
-              height: '600px',
-              transform: getCardTransform(),
-              transition: 'transform 0.1s ease-out',
-              cursor: 'none'
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{
-              width: '100%',
-              height: '100%',
-              background: 'linear-gradient(145deg, #2a2a3e, #1e1e2e)',
-              borderRadius: '20px',
-              padding: '2rem',
-              boxShadow: '0 30px 60px rgba(0,0,0,0.6)',
-              border: '3px solid rgba(102, 126, 234, 0.5)',
-              position: 'relative',
-              overflow: 'hidden'
-            }}>
-              {/* Enhanced holographic effect */}
-              <div style={{
-                position: 'absolute',
-                top: 0,
-                left: '-100%',
-                width: '100%',
-                height: '100%',
-                background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent)',
-                animation: 'shine 2s infinite',
-                pointerEvents: 'none'
-              }} />
-
-              {/* Card content */}
-              <div style={{
-                position: 'relative',
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-                color: '#F1F1F1'
-              }}>
-                <div style={{
-                  flex: 1,
-                  borderRadius: '16px',
-                  overflow: 'hidden',
-                  marginBottom: '1.5rem'
-                }}>
-                  <img 
-                    src={selectedCard.image}
-                    alt={selectedCard.name}
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'cover'
-                    }}
-                  />
-                </div>
-                
-                <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
-                  <h2 style={{
-                    margin: '0 0 0.5rem 0',
-                    fontSize: '2.5rem',
-                    fontWeight: '700',
-                    textShadow: '0 2px 4px rgba(0,0,0,0.5)'
-                  }}>
-                    {selectedCard.name}
-                  </h2>
-                  <p style={{
-                    margin: 0,
-                    fontSize: '1.5rem',
-                    color: '#667eea',
-                    fontWeight: '600'
-                  }}>
-                    {selectedCard.role}
-                  </p>
-                </div>
-
-                {/* Stats */}
-                <div style={{
-                  background: 'rgba(0,0,0,0.3)',
-                  borderRadius: '12px',
-                  padding: '1rem'
-                }}>
-                  <h4 style={{
-                    margin: '0 0 1rem 0',
-                    fontSize: '1.2rem',
-                    textAlign: 'center',
-                    color: '#667eea'
-                  }}>
-                    Special Attributes
-                  </h4>
-                  {Object.entries(selectedCard.stats).map(([stat, value]) => (
-                    <div key={stat} style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      marginBottom: '0.5rem'
-                    }}>
-                      <span style={{ textTransform: 'capitalize' }}>{stat}</span>
-                      <span style={{ color: '#667eea', fontWeight: '700' }}>{value}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
+      {/* Removed the old modal JSX since we're using a portal now */}
       <style jsx>{`
         @keyframes shine {
           0% { left: -100%; }

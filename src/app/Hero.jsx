@@ -133,7 +133,7 @@ export default function Hero() {
         ref={textRef} 
         style={{ 
           position: "absolute",
-          top: "40%",
+          top: "30%",
           left: "50%",
           transform: "translateX(-50%)",
           zIndex: 10,
@@ -175,22 +175,6 @@ export default function Hero() {
             are getting married!
           </div>
         </h1>
-        <p 
-          ref={subtitleRef}
-          style={{ 
-            fontSize: "clamp(1.1rem, 3vw, 1.4rem)",
-            textShadow: "0 3px 6px rgba(0, 0, 0, 0.6), 0 1px 3px rgba(0, 0, 0, 0.4)",
-            margin: "0",
-            opacity: 0,
-            transform: "translateY(60px) rotateX(45deg)",
-            transformOrigin: "center bottom",
-            fontWeight: "400",
-            letterSpacing: "0.05em",
-            willChange: "transform, opacity"
-          }}
-        >
-          Save the Date
-        </p>
       </div>
 
       {/* Calendar Container */}

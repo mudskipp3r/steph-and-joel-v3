@@ -1,18 +1,30 @@
 "use client";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import styles from "./page.module.css";
 import Hero from "./Hero";
 import Schedule from "./Schedule";
 import BridalParty from "./BridalParty";
+import RsvpModal from "./RsvpModal";
 import PasswordProtection from "./PasswordProtection";
-import ScrollSmootherWrapper from './ScrollSmootherWrapper';
+import ScrollSmootherWrapper from "./ScrollSmootherWrapper";
+import Navigation from './Navigation';
+import FAQ from './FAQ';
 
 export default function Home() {
+  const [isRsvpModalOpen, setIsRsvpModalOpen] = useState(false);
   const pageRef = useRef(null);
 
   const handleAuthenticated = () => {
-    console.log('Guest authenticated for wedding site!');
+    console.log("Guest authenticated for wedding site!");
   };
+
+  function handleOpenRsvpModal() {
+    setIsRsvpModalOpen(true);
+  }
+
+  function handleCloseRsvpModal() {
+    setIsRsvpModalOpen(false);
+  }
 
   return (
     <PasswordProtection
@@ -23,19 +35,28 @@ export default function Home() {
       placeholder="Enter guest password"
       onAuthenticated={handleAuthenticated}
     >
+      {isRsvpModalOpen && <RsvpModal onClose={handleCloseRsvpModal} />}
+
       <ScrollSmootherWrapper>
+        <Navigation 
+          onRsvpClick={handleOpenRsvpModal}
+          sessionKey="wedding_site_auth"
+        />
         <div ref={pageRef} className={styles.page}>
           <main>
-            <section className={styles.heroSection}>
+            <section id="hero" className={styles.heroSection}>
               <Hero />
             </section>
 
-            <section className={styles.scheduleSection}>
+            <section id="schedule" className={styles.scheduleSection}>
               <Schedule />
             </section>
 
-            <section className={styles.BridalPartySection}>
+            <section id="bridal-party" className={styles.bridalPartySection}>
               <BridalParty />
+            </section>
+            <section id="faq" className={styles.faqSection}>
+              <FAQ />
             </section>
           </main>
         </div>

@@ -1,9 +1,10 @@
+// src/app/PasswordProtection.jsx
 import React, { useState, useEffect } from 'react';
 
 const PasswordProtection = ({
   children,
   correctPasswordHash = process.env.NEXT_PUBLIC_SITE_PASSWORD_HASH || "f3347c6800b7fe2ba143f514c5a471f5fcf35bbf26a5cc6cb60207cd840e3fdb", // Your actual password hash as fallback
-  sessionKey = "site_authenticated",
+  sessionKey = "wedding_site_auth",
   title = "🔒 Protected Content",
   description = "Please enter the password to access this site.",
   placeholder = "Enter password",
@@ -61,36 +62,12 @@ const PasswordProtection = ({
     }
   };
 
-  // Logout function
-  const logout = () => {
-    sessionStorage.removeItem(sessionKey);
-    setIsAuthenticated(false);
-    setPassword('');
-  };
-
-  // If authenticated, render children with logout option
+  // If authenticated, render children without logout button
+  // (logout will be handled by the Navigation component)
   if (isAuthenticated) {
     return (
       <div className="password-protected-content">
         {children}
-        <button 
-          onClick={logout}
-          className="logout-btn"
-          style={{
-            position: 'fixed',
-            top: '20px',
-            right: '20px',
-            padding: '8px 16px',
-            background: 'rgba(0,0,0,0.1)',
-            border: '1px solid rgba(0,0,0,0.2)',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            fontSize: '14px',
-            zIndex: 1000
-          }}
-        >
-          Logout
-        </button>
       </div>
     );
   }
